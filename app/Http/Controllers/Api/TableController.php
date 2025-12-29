@@ -18,25 +18,52 @@ class TableController extends Controller
             'reservation_time' => 'required|date_format:H:i',
             'table_type_id' => 'required|exists:table_types,id',
             'number_of_people' => 'required|integer|min:1|max:20',
+            'duration_hours' => 'required|integer|min:1|max:8',
         ]);
 
-        // Get available tables based on criteria
-        $availableTables = Table::where('table_type_id', $request->table_type_id)
+        $reservationDate = $request->reservation_date;
+        $reservationTime = $request->reservation_time;
+        $durationHours = $request->duration_hours;
+        
+        // Calculate end time
+        $startDateTime = \Carbon\Carbon::parse($reservationDate . ' ' . $reservationTime);
+        $endDateTime = $startDateTime->copy()->addHours($durationHours);
+
+        // Get all tables matching criteria
+        $candidateTables = Table::where('table_type_id', $request->table_type_id)
             ->where('capacity', '>=', $request->number_of_people)
             ->where('status', 'available')
             ->with('tableType')
             ->orderBy('capacity')
             ->get();
 
-        // TODO: Check against existing reservations for the same date/time
-        // For now, we just return tables with 'available' status
+        // Filter out tables that have conflicting reservations
+        $availableTables = $candidateTables->filter(function ($table) use ($reservationDate, $startDateTime, $endDateTime) {
+            // Check if table has any conflicting reservations
+            $conflictingReservations = \App\Models\Reservation::where('table_id', $table->id)
+                ->where('reservation_date', $reservationDate)
+                ->whereIn('status', ['pending_verification', 'confirmed'])
+                ->get();
+
+            foreach ($conflictingReservations as $reservation) {
+                $existingStart = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $reservation->reservation_time);
+                $existingEnd = $existingStart->copy()->addHours($reservation->duration_hours ?? 2);
+
+                // Check for time overlap
+                if ($startDateTime->lt($existingEnd) && $endDateTime->gt($existingStart)) {
+                    return false; // Conflict found
+                }
+            }
+
+            return true; // No conflict
+        });
 
         return response()->json([
             'success' => true,
             'message' => count($availableTables) > 0 
                 ? count($availableTables) . ' table(s) available' 
                 : 'No tables available for selected criteria',
-            'data' => $availableTables,
+            'data' => $availableTables->values(),
         ]);
     }
 }

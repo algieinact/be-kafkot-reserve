@@ -15,11 +15,19 @@ class Reservation extends Model
         'reservation_date',
         'reservation_time',
         'number_of_people',
+        'duration_hours',
         'total_amount',
         'status',
-        'notes',
+        'special_notes',
+        'rejection_reason',
         'verified_by',
         'verified_at',
+    ];
+
+    protected $casts = [
+        'reservation_date' => 'date',
+        'reservation_time' => 'datetime:H:i',
+        'verified_at' => 'datetime',
     ];
 
     public function table()

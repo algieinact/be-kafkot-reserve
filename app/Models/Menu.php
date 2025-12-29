@@ -15,6 +15,11 @@ class Menu extends Model
         'is_available',
     ];
 
+    protected $casts = [
+        'is_available' => 'boolean',
+        'price' => 'decimal:2',
+    ];
+
     public function reservationItems()
     {
         return $this->hasMany(ReservationItem::class);
