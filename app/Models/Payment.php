@@ -28,6 +28,22 @@ class Payment extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
+    // Accessor to return full URL for payment proof
+    public function getPaymentProofUrlAttribute($value)
+    {
+        if (!$value) {
+            return null;
+        }
+
+        // If already a full URL, return as is
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        // Otherwise, prepend storage URL
+        return asset('storage/' . $value);
+    }
+
     public function emailLogs()
     {
         return $this->hasMany(EmailLog::class);

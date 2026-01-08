@@ -30,6 +30,20 @@ class Reservation extends Model
         'verified_at' => 'datetime',
     ];
 
+    protected $appends = ['payment_proof_url', 'items'];
+
+    // Accessor for payment_proof_url
+    public function getPaymentProofUrlAttribute()
+    {
+        return $this->payment?->payment_proof_url;
+    }
+
+    // Accessor for items (alias for reservationItems)
+    public function getItemsAttribute()
+    {
+        return $this->reservationItems;
+    }
+
     public function table()
     {
         return $this->belongsTo(Table::class);

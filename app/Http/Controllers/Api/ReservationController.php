@@ -64,7 +64,7 @@ class ReservationController extends Controller
             // Create reservation items
             foreach ($request->order_items as $item) {
                 $menu = \App\Models\Menu::find($item['menu_id']);
-                
+
                 ReservationItem::create([
                     'reservation_id' => $reservation->id,
                     'menu_id' => $menu->id,
@@ -97,7 +97,7 @@ class ReservationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create reservation: ' . $e->getMessage(),
@@ -159,7 +159,8 @@ class ReservationController extends Controller
                 'success' => true,
                 'message' => 'Payment proof uploaded successfully',
                 'data' => [
-                    'payment_proof_url' => $path,
+                    'payment_proof_url' => asset('storage/' . $path),
+                    'payment_proof_path' => $path,
                 ],
             ]);
 

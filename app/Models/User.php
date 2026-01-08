@@ -50,6 +50,19 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Append name attribute to JSON
+     */
+    protected $appends = ['name'];
+
+    /**
+     * Get name attribute (alias for full_name)
+     */
+    public function getNameAttribute(): string
+    {
+        return $this->full_name ?? '';
+    }
+
     public function reservations()
     {
         return $this->hasMany(Reservation::class, 'verified_by');

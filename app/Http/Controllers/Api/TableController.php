@@ -24,7 +24,7 @@ class TableController extends Controller
         $reservationDate = $request->reservation_date;
         $reservationTime = $request->reservation_time;
         $durationHours = $request->duration_hours;
-        
+
         // Calculate end time
         $startDateTime = \Carbon\Carbon::parse($reservationDate . ' ' . $reservationTime);
         $endDateTime = $startDateTime->copy()->addHours($durationHours);
@@ -60,10 +60,13 @@ class TableController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => count($availableTables) > 0 
-                ? count($availableTables) . ' table(s) available' 
+            'message' => count($availableTables) > 0
+                ? count($availableTables) . ' table(s) available'
                 : 'No tables available for selected criteria',
-            'data' => $availableTables->values(),
+            'data' => [
+                'available' => count($availableTables) > 0,
+                'available_tables' => $availableTables->values(),
+            ],
         ]);
     }
 }
