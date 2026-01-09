@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\ReservationItem;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -126,7 +127,7 @@ class ReservationController extends Controller
     public function uploadPaymentProof(Request $request, $id)
     {
         $request->validate([
-            'payment_proof' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+            'payment_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         $reservation = Reservation::findOrFail($id);
@@ -140,14 +141,29 @@ class ReservationController extends Controller
         }
 
         try {
-            // Store payment proof
-            $file = $request->file('payment_proof');
-            $filename = 'payment-' . $reservation->booking_code . '-' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('payment-proofs', $filename, 'public');
+            $cloudinary = new CloudinaryService();
 
-            // Update payment record
+            // Generate unique filename for Cloudinary
+            $publicId = 'payment-' . $reservation->booking_code . '-' . time();
+
+            // Upload to Cloudinary
+            $uploadResult = $cloudinary->uploadImage(
+                $request->file('payment_proof'),
+                'kafkot/payment-proofs',
+                $publicId
+            );
+
+            // Delete old image from Cloudinary if exists
+            if ($payment->payment_proof_url) {
+                $oldPublicId = $cloudinary->extractPublicId($payment->payment_proof_url);
+                if ($oldPublicId) {
+                    $cloudinary->deleteImage($oldPublicId);
+                }
+            }
+
+            // Update payment record with Cloudinary secure URL
             $payment->update([
-                'payment_proof_url' => $path,
+                'payment_proof_url' => $uploadResult['secure_url'],
             ]);
 
             // Update reservation status if needed
@@ -159,8 +175,10 @@ class ReservationController extends Controller
                 'success' => true,
                 'message' => 'Payment proof uploaded successfully',
                 'data' => [
-                    'payment_proof_url' => asset('storage/' . $path),
-                    'payment_proof_path' => $path,
+                    'payment_proof_url' => $uploadResult['secure_url'],
+                    'public_id' => $uploadResult['public_id'],
+                    'format' => $uploadResult['format'],
+                    'size_bytes' => $uploadResult['bytes'],
                 ],
             ]);
 
