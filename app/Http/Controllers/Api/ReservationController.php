@@ -14,27 +14,44 @@ use Illuminate\Support\Str;
 class ReservationController extends Controller
 {
     /**
-     * Create new reservation
+     * Create new reservation WITH payment proof
+     * This ensures no spam reservations without payment proof
      */
     public function store(Request $request)
     {
         $request->validate([
+            // Customer info
             'customer_name' => 'required|string|min:2',
             'customer_email' => 'required|email',
             'customer_phone' => 'required|string',
+
+            // Reservation details
             'table_id' => 'required|exists:tables,id',
             'reservation_date' => 'required|date|after_or_equal:today',
             'reservation_time' => 'required|date_format:H:i',
             'number_of_people' => 'required|integer|min:1|max:20',
-            'duration_hours' => 'required|integer|min:1|max:8',
+            'duration_hours' => 'required|numeric|min:0.5|max:8',
             'special_notes' => 'nullable|string',
+
+            // Order items
             'order_items' => 'required|array|min:1',
             'order_items.*.menu_id' => 'required|exists:menus,id',
             'order_items.*.quantity' => 'required|integer|min:1',
+
+            // Payment proof (REQUIRED)
+            'payment_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         try {
             DB::beginTransaction();
+
+            // Verify table is still available
+            $this->verifyTableAvailability(
+                $request->table_id,
+                $request->reservation_date,
+                $request->reservation_time,
+                $request->duration_hours
+            );
 
             // Generate unique booking code
             $bookingCode = 'RSV-' . date('Ymd') . '-' . strtoupper(Str::random(6));
@@ -46,7 +63,17 @@ class ReservationController extends Controller
                 $totalAmount += $menu->price * $item['quantity'];
             }
 
-            // Create reservation
+            // Upload payment proof to Cloudinary FIRST
+            $cloudinary = new CloudinaryService();
+            $publicId = 'payment-' . $bookingCode . '-' . time();
+
+            $uploadResult = $cloudinary->uploadImage(
+                $request->file('payment_proof'),
+                'kafkot/payment-proofs',
+                $publicId
+            );
+
+            // Create reservation (only after payment proof uploaded successfully)
             $reservation = Reservation::create([
                 'booking_code' => $bookingCode,
                 'customer_name' => $request->customer_name,
@@ -75,12 +102,13 @@ class ReservationController extends Controller
                 ]);
             }
 
-            // Create payment record
+            // Create payment record with proof URL
             Payment::create([
                 'reservation_id' => $reservation->id,
                 'amount' => $totalAmount,
                 'payment_method' => 'bank_transfer',
                 'payment_status' => 'unpaid',
+                'payment_proof_url' => $uploadResult['secure_url'],
             ]);
 
             DB::commit();
@@ -92,7 +120,7 @@ class ReservationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Reservation created successfully',
+                'message' => 'Reservation created successfully. Please wait for admin verification.',
                 'data' => $reservation,
             ], 201);
 
@@ -103,6 +131,35 @@ class ReservationController extends Controller
                 'success' => false,
                 'message' => 'Failed to create reservation: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Verify table is still available before creating reservation
+     */
+    private function verifyTableAvailability($tableId, $reservationDate, $reservationTime, $durationHours)
+    {
+        $startDateTime = \Carbon\Carbon::parse($reservationDate . ' ' . $reservationTime);
+        $endDateTime = $startDateTime->copy()->addHours($durationHours);
+
+        // Buffer time (same as TableController)
+        $bufferMinutes = 30;
+
+        // Check for conflicting reservations
+        $conflicts = Reservation::where('table_id', $tableId)
+            ->where('reservation_date', $reservationDate)
+            ->whereIn('status', ['pending_verification', 'confirmed'])
+            ->get();
+
+        foreach ($conflicts as $existing) {
+            $existingStart = \Carbon\Carbon::parse($existing->reservation_date . ' ' . $existing->reservation_time);
+            $existingEnd = $existingStart->copy()->addHours($existing->duration_hours);
+            $existingEndWithBuffer = $existingEnd->copy()->addMinutes($bufferMinutes);
+
+            // Check for overlap
+            if ($startDateTime->lt($existingEndWithBuffer) && $endDateTime->gt($existingStart)) {
+                throw new \Exception('Table is no longer available for the selected time slot. Please choose another time or table.');
+            }
         }
     }
 
@@ -122,7 +179,8 @@ class ReservationController extends Controller
     }
 
     /**
-     * Upload payment proof
+     * Upload payment proof (DEPRECATED - now handled in store method)
+     * Kept for backward compatibility if needed
      */
     public function uploadPaymentProof(Request $request, $id)
     {

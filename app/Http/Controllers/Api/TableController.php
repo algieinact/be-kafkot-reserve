@@ -9,6 +9,11 @@ use Illuminate\Http\Request;
 class TableController extends Controller
 {
     /**
+     * Buffer time in minutes between reservations (for table cleanup)
+     */
+    const BUFFER_TIME_MINUTES = 30;
+
+    /**
      * Check table availability
      */
     public function checkAvailability(Request $request)
@@ -18,7 +23,7 @@ class TableController extends Controller
             'reservation_time' => 'required|date_format:H:i',
             'table_type_id' => 'required|exists:table_types,id',
             'number_of_people' => 'required|integer|min:1|max:20',
-            'duration_hours' => 'required|integer|min:1|max:8',
+            'duration_hours' => 'required|numeric|min:0.5|max:8',
         ]);
 
         $reservationDate = $request->reservation_date;
@@ -47,10 +52,15 @@ class TableController extends Controller
 
             foreach ($conflictingReservations as $reservation) {
                 $existingStart = \Carbon\Carbon::parse($reservation->reservation_date . ' ' . $reservation->reservation_time);
-                $existingEnd = $existingStart->copy()->addHours($reservation->duration_hours ?? 2);
+                $existingEnd = $existingStart->copy()->addHours($reservation->duration_hours);
 
-                // Check for time overlap
-                if ($startDateTime->lt($existingEnd) && $endDateTime->gt($existingStart)) {
+                // Add buffer time to existing reservation end time (30 minutes for table cleanup)
+                $existingEndWithBuffer = $existingEnd->copy()->addMinutes(self::BUFFER_TIME_MINUTES);
+
+                // Check for time overlap with buffer
+                // New reservation conflicts if it starts before existing ends (with buffer)
+                // AND ends after existing starts
+                if ($startDateTime->lt($existingEndWithBuffer) && $endDateTime->gt($existingStart)) {
                     return false; // Conflict found
                 }
             }
@@ -66,6 +76,7 @@ class TableController extends Controller
             'data' => [
                 'available' => count($availableTables) > 0,
                 'available_tables' => $availableTables->values(),
+                'buffer_time_minutes' => self::BUFFER_TIME_MINUTES,
             ],
         ]);
     }
