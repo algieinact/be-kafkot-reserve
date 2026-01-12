@@ -29,17 +29,15 @@ class ReservationController extends Controller
             'table_id' => 'required|exists:tables,id',
             'reservation_date' => 'required|date|after_or_equal:today',
             'reservation_time' => 'required|date_format:H:i',
-            'number_of_people' => 'required|integer|min:1|max:20',
             'duration_hours' => 'required|numeric|min:0.5|max:8',
-            'special_notes' => 'nullable|string',
 
             // Order items
             'order_items' => 'required|array|min:1',
             'order_items.*.menu_id' => 'required|exists:menus,id',
             'order_items.*.quantity' => 'required|integer|min:1',
 
-            // Payment proof (REQUIRED)
-            'payment_proof' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+            // Payment proof (OPTIONAL - can be uploaded later)
+            'payment_proof' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         try {
@@ -63,17 +61,21 @@ class ReservationController extends Controller
                 $totalAmount += $menu->price * $item['quantity'];
             }
 
-            // Upload payment proof to Cloudinary FIRST
-            $cloudinary = new CloudinaryService();
-            $publicId = 'payment-' . $bookingCode . '-' . time();
+            // Upload payment proof to Cloudinary (if provided)
+            $paymentProofUrl = null;
+            if ($request->hasFile('payment_proof')) {
+                $cloudinary = new CloudinaryService();
+                $publicId = 'payment-' . $bookingCode . '-' . time();
 
-            $uploadResult = $cloudinary->uploadImage(
-                $request->file('payment_proof'),
-                'kafkot/payment-proofs',
-                $publicId
-            );
+                $uploadResult = $cloudinary->uploadImage(
+                    $request->file('payment_proof'),
+                    'kafkot/payment-proofs',
+                    $publicId
+                );
+                $paymentProofUrl = $uploadResult['secure_url'];
+            }
 
-            // Create reservation (only after payment proof uploaded successfully)
+            // Create reservation
             $reservation = Reservation::create([
                 'booking_code' => $bookingCode,
                 'customer_name' => $request->customer_name,
@@ -82,11 +84,10 @@ class ReservationController extends Controller
                 'table_id' => $request->table_id,
                 'reservation_date' => $request->reservation_date,
                 'reservation_time' => $request->reservation_time,
-                'number_of_people' => $request->number_of_people,
                 'duration_hours' => $request->duration_hours,
                 'total_amount' => $totalAmount,
-                'status' => 'pending_verification',
-                'special_notes' => $request->special_notes,
+                'status' => 'pending_verification', // Always pending_verification, will be updated after payment upload
+                'payment_proof_url' => $paymentProofUrl,
             ]);
 
             // Create reservation items
@@ -102,14 +103,18 @@ class ReservationController extends Controller
                 ]);
             }
 
-            // Create payment record with proof URL
-            Payment::create([
-                'reservation_id' => $reservation->id,
-                'amount' => $totalAmount,
-                'payment_method' => 'bank_transfer',
-                'payment_status' => 'unpaid',
-                'payment_proof_url' => $uploadResult['secure_url'],
-            ]);
+
+            // Create payment record (if payment proof was uploaded)
+            if ($paymentProofUrl) {
+                Payment::create([
+                    'reservation_id' => $reservation->id,
+                    'amount' => $totalAmount,
+                    'payment_method' => 'bank_transfer',
+                    'payment_status' => 'waiting_verification',
+                    'payment_proof_url' => $paymentProofUrl,
+                ]);
+            }
+
 
             DB::commit();
 
@@ -140,7 +145,7 @@ class ReservationController extends Controller
     private function verifyTableAvailability($tableId, $reservationDate, $reservationTime, $durationHours)
     {
         $startDateTime = \Carbon\Carbon::parse($reservationDate . ' ' . $reservationTime);
-        $endDateTime = $startDateTime->copy()->addHours($durationHours);
+        $endDateTime = $startDateTime->copy()->addHours((float) $durationHours);
 
         // Buffer time (same as TableController)
         $bufferMinutes = 30;
@@ -152,8 +157,11 @@ class ReservationController extends Controller
             ->get();
 
         foreach ($conflicts as $existing) {
-            $existingStart = \Carbon\Carbon::parse($existing->reservation_date . ' ' . $existing->reservation_time);
-            $existingEnd = $existingStart->copy()->addHours($existing->duration_hours);
+            // Extract date and time safely
+            $dateOnly = \Carbon\Carbon::parse($existing->reservation_date)->format('Y-m-d');
+            $timeOnly = \Carbon\Carbon::parse($existing->reservation_time)->format('H:i:s');
+            $existingStart = \Carbon\Carbon::parse($dateOnly . ' ' . $timeOnly);
+            $existingEnd = $existingStart->copy()->addHours((float) $existing->duration_hours);
             $existingEndWithBuffer = $existingEnd->copy()->addMinutes($bufferMinutes);
 
             // Check for overlap

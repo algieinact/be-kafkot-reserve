@@ -23,6 +23,7 @@ Route::get('/bank-accounts/active', [BankAccountController::class, 'active']);
 
 // Table availability
 Route::post('/tables/check-availability', [TableController::class, 'checkAvailability']);
+Route::post('/tables/availability-status', [TableController::class, 'getTablesWithAvailability']);
 
 // Table types (public - for reservation form)
 Route::get('/table-types', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'getTableTypes']);
@@ -57,11 +58,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/menus/{id}/toggle-availability', [\App\Http\Controllers\Api\Admin\MenuManagementController::class, 'toggleAvailability']);
 
         // Table Management
-        Route::get('/tables', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'index']);
-        Route::get('/tables/{id}', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'show']);
-        Route::post('/tables', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'store']);
-        Route::put('/tables/{id}', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'update']);
-        Route::delete('/tables/{id}', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'destroy']);
+        Route::get('/tables', [TableController::class, 'index']);
+        Route::post('/tables', [TableController::class, 'store']);
+        Route::put('/tables/{id}', [TableController::class, 'update']);
+        Route::delete('/tables/{id}', [TableController::class, 'destroy']);
+        Route::put('/tables/{id}/position', [TableController::class, 'updatePosition']);
+
+        // Table Types
+        Route::get('/table-types', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'getTableTypes']);
+
         Route::patch('/tables/{id}/status', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'updateStatus']);
         Route::get('/table-types', [\App\Http\Controllers\Api\Admin\TableManagementController::class, 'getTableTypes']);
 

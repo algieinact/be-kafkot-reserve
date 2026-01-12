@@ -8,7 +8,7 @@ class Table extends Model
 {
     protected $table = 'tables';
 
-    protected $fillable = ['table_type_id', 'table_number', 'capacity', 'status'];
+    protected $fillable = ['table_type_id', 'table_number', 'capacity', 'status', 'floor', 'position_x', 'position_y', 'orientation'];
 
     public function tableType()
     {
@@ -19,4 +19,12 @@ class Table extends Model
     {
         return $this->hasMany(Reservation::class);
     }
+
+    protected $casts = [
+        'capacity' => 'integer',
+        'floor' => 'integer',
+        'position_x' => 'integer',
+        'position_y' => 'integer',
+        'table_type_id' => 'integer',
+    ];
 }
