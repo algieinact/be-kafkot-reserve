@@ -24,4 +24,13 @@ class Menu extends Model
     {
         return $this->hasMany(ReservationItem::class);
     }
+
+    /**
+     * Get the variation groups assigned to this menu
+     */
+    public function variationGroups()
+    {
+        return $this->belongsToMany(VariationGroup::class, 'menu_variations')
+            ->with('options');
+    }
 }

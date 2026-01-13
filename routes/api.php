@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BankAccountController;
+use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\TableController;
+use App\Http\Controllers\Api\Admin\VariationGroupController;
+use App\Http\Controllers\Api\Admin\VariationOptionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,6 +23,9 @@ Route::get('/menus/{id}', [MenuController::class, 'show']);
 
 // Bank accounts (for payment info)
 Route::get('/bank-accounts/active', [BankAccountController::class, 'active']);
+
+// Banners (public - active only)
+Route::get('/banners', [BannerController::class, 'index']);
 
 // Table availability
 Route::post('/tables/check-availability', [TableController::class, 'checkAvailability']);
@@ -77,5 +83,29 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reservations/{id}/reject', [\App\Http\Controllers\Api\Admin\ReservationManagementController::class, 'rejectPayment']);
         Route::patch('/reservations/{id}/complete', [\App\Http\Controllers\Api\Admin\ReservationManagementController::class, 'complete']);
         Route::delete('/reservations/{id}', [\App\Http\Controllers\Api\Admin\ReservationManagementController::class, 'cancel']);
+
+        // Banner Management (Admin only)
+        Route::get('/banners', [BannerController::class, 'adminIndex']);
+        Route::post('/banners', [BannerController::class, 'store']);
+        Route::get('/banners/{id}', [BannerController::class, 'show']);
+        Route::put('/banners/{id}', [BannerController::class, 'update']);
+        Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
+
+        // Variation Group Management (Admin only)
+        Route::get('/variation-groups', [VariationGroupController::class, 'index']);
+        Route::post('/variation-groups', [VariationGroupController::class, 'store']);
+        Route::get('/variation-groups/{id}', [VariationGroupController::class, 'show']);
+        Route::put('/variation-groups/{id}', [VariationGroupController::class, 'update']);
+        Route::delete('/variation-groups/{id}', [VariationGroupController::class, 'destroy']);
+
+        // Variation Option Management (Admin only)
+        Route::post('/variation-options', [VariationOptionController::class, 'store']);
+        Route::put('/variation-options/{id}', [VariationOptionController::class, 'update']);
+        Route::delete('/variation-options/{id}', [VariationOptionController::class, 'destroy']);
+        Route::post('/variation-options/reorder', [VariationOptionController::class, 'reorder']);
+
+        // Menu Variation Assignment (Admin only)
+        Route::post('/menus/{id}/variations', [MenuController::class, 'assignVariations']);
+        Route::delete('/menus/{menuId}/variations/{groupId}', [MenuController::class, 'removeVariation']);
     });
 });

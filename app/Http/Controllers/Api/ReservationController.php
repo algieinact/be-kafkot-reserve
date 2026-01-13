@@ -58,7 +58,17 @@ class ReservationController extends Controller
             $totalAmount = 0;
             foreach ($request->order_items as $item) {
                 $menu = \App\Models\Menu::find($item['menu_id']);
-                $totalAmount += $menu->price * $item['quantity'];
+
+                // Calculate variation price
+                $variationTotal = 0;
+                if (isset($item['variations']) && is_array($item['variations'])) {
+                    foreach ($item['variations'] as $variation) {
+                        $variationTotal += ($variation['price'] ?? 0);
+                    }
+                }
+
+                $pricePerItem = $menu->price + $variationTotal;
+                $totalAmount += $pricePerItem * $item['quantity'];
             }
 
             // Upload payment proof to Cloudinary (if provided)
@@ -94,12 +104,21 @@ class ReservationController extends Controller
             foreach ($request->order_items as $item) {
                 $menu = \App\Models\Menu::find($item['menu_id']);
 
+                $variations = $item['variations'] ?? [];
+                $variationTotal = 0;
+                foreach ($variations as $variation) {
+                    $variationTotal += ($variation['price'] ?? 0);
+                }
+
+                $pricePerItem = $menu->price + $variationTotal;
+
                 ReservationItem::create([
                     'reservation_id' => $reservation->id,
                     'menu_id' => $menu->id,
                     'quantity' => $item['quantity'],
-                    'price_at_order' => $menu->price,
-                    'subtotal' => $menu->price * $item['quantity'],
+                    'price_at_order' => $pricePerItem, // Base + Variations
+                    'variations' => $variations ? json_encode($variations) : null,
+                    'subtotal' => $pricePerItem * $item['quantity'],
                 ]);
             }
 
