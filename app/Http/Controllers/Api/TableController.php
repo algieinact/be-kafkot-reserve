@@ -173,6 +173,8 @@ class TableController extends Controller
                 'position_x' => $table->position_x,
                 'position_y' => $table->position_y,
                 'orientation' => $table->orientation,
+                'span_x' => $table->span_x,
+                'span_y' => $table->span_y,
                 'status' => $table->status,
                 'is_available_for_booking' => $isAvailable,
             ];
@@ -213,7 +215,23 @@ class TableController extends Controller
             'position_x' => 'nullable|integer',
             'position_y' => 'nullable|integer',
             'orientation' => 'nullable|in:horizontal,vertical',
+            'span_x' => 'nullable|integer|min:1|max:5',
+            'span_y' => 'nullable|integer|min:1|max:5',
         ]);
+
+        // Check for overlap if position is provided
+        if ($request->has('position_x') && $request->position_x !== -1) {
+            $spanX = $request->span_x ?? 1;
+            $spanY = $request->span_y ?? 1;
+            $floor = $request->floor ?? 1;
+
+            if ($this->checkOverlap($floor, $request->position_x, $request->position_y, $spanX, $spanY)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Table position overlaps with existing table',
+                ], 422);
+            }
+        }
 
         $table = Table::create($request->all());
 
@@ -241,7 +259,23 @@ class TableController extends Controller
             'position_x' => 'nullable|integer',
             'position_y' => 'nullable|integer',
             'orientation' => 'nullable|in:horizontal,vertical',
+            'span_x' => 'nullable|integer|min:1|max:5',
+            'span_y' => 'nullable|integer|min:1|max:5',
         ]);
+
+        // Check for overlap if position changed
+        if ($request->has('position_x') && $request->position_x !== -1) {
+            $spanX = $request->span_x ?? $table->span_x ?? 1;
+            $spanY = $request->span_y ?? $table->span_y ?? 1;
+            $floor = $request->floor ?? $table->floor;
+
+            if ($this->checkOverlap($floor, $request->position_x, $request->position_y, $spanX, $spanY, $id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Table position overlaps with existing table',
+                ], 422);
+            }
+        }
 
         $table->update($request->all());
 
@@ -281,13 +315,30 @@ class TableController extends Controller
             'position_y' => 'required|integer',
             'floor' => 'required|integer|min:1|max:3',
             'orientation' => 'nullable|in:horizontal,vertical',
+            'span_x' => 'nullable|integer|min:1|max:5',
+            'span_y' => 'nullable|integer|min:1|max:5',
         ]);
+
+        // Check for overlap
+        if ($request->position_x !== -1) {
+            $spanX = $request->span_x ?? $table->span_x ?? 1;
+            $spanY = $request->span_y ?? $table->span_y ?? 1;
+
+            if ($this->checkOverlap($request->floor, $request->position_x, $request->position_y, $spanX, $spanY, $id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Table position overlaps with existing table',
+                ], 422);
+            }
+        }
 
         $table->update([
             'position_x' => $request->position_x,
             'position_y' => $request->position_y,
             'floor' => $request->floor,
             'orientation' => $request->orientation ?? $table->orientation,
+            'span_x' => $request->span_x ?? $table->span_x ?? 1,
+            'span_y' => $request->span_y ?? $table->span_y ?? 1,
         ]);
 
         return response()->json([
@@ -295,5 +346,56 @@ class TableController extends Controller
             'message' => 'Table position updated successfully',
             'data' => $table,
         ]);
+    }
+
+    /**
+     * Check if a table position overlaps with existing tables
+     */
+    private function checkOverlap($floor, $x, $y, $spanX, $spanY, $excludeId = null)
+    {
+        $tables = Table::where('floor', $floor)
+            ->where('position_x', '!=', -1)
+            ->when($excludeId, function ($query) use ($excludeId) {
+                return $query->where('id', '!=', $excludeId);
+            })
+            ->get();
+
+        foreach ($tables as $table) {
+            $tableSpanX = $table->span_x ?? 1;
+            $tableSpanY = $table->span_y ?? 1;
+
+            // Check if rectangles overlap
+            if (
+                $this->rectanglesOverlap(
+                    $x,
+                    $y,
+                    $spanX,
+                    $spanY,
+                    $table->position_x,
+                    $table->position_y,
+                    $tableSpanX,
+                    $tableSpanY
+                )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if two rectangles overlap
+     */
+    private function rectanglesOverlap($x1, $y1, $w1, $h1, $x2, $y2, $w2, $h2)
+    {
+        // Rectangle 1 ends at x1+w1-1, y1+h1-1
+        // Rectangle 2 ends at x2+w2-1, y2+h2-1
+        return !(
+            $x1 + $w1 <= $x2 ||  // Rectangle 1 is to the left of Rectangle 2
+            $x2 + $w2 <= $x1 ||  // Rectangle 2 is to the left of Rectangle 1
+            $y1 + $h1 <= $y2 ||  // Rectangle 1 is above Rectangle 2
+            $y2 + $h2 <= $y1     // Rectangle 2 is above Rectangle 1
+        );
     }
 }

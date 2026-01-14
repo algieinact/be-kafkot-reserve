@@ -8,7 +8,7 @@ class Table extends Model
 {
     protected $table = 'tables';
 
-    protected $fillable = ['table_type_id', 'table_number', 'capacity', 'status', 'floor', 'position_x', 'position_y', 'orientation'];
+    protected $fillable = ['table_type_id', 'table_number', 'capacity', 'status', 'floor', 'position_x', 'position_y', 'orientation', 'span_x', 'span_y'];
 
     public function tableType()
     {
@@ -26,5 +26,7 @@ class Table extends Model
         'position_x' => 'integer',
         'position_y' => 'integer',
         'table_type_id' => 'integer',
+        'span_x' => 'integer',
+        'span_y' => 'integer',
     ];
 }
