@@ -21,6 +21,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             MenuSeeder::class,
             BankAccountSeeder::class,
+            BannerSeeder::class,
+            VariationSeeder::class,
         ]);
     }
 }
