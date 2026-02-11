@@ -27,6 +27,10 @@ Route::get('/bank-accounts/active', [BankAccountController::class, 'active']);
 // Banners (public - active only)
 Route::get('/banners', [BannerController::class, 'index']);
 
+// Categories (public)
+Route::get('/categories', [\App\Http\Controllers\Api\CategoryController::class, 'index']);
+
+
 // Table availability
 Route::post('/tables/check-availability', [TableController::class, 'checkAvailability']);
 Route::post('/tables/availability-status', [TableController::class, 'getTablesWithAvailability']);
@@ -90,6 +94,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/banners/{id}', [BannerController::class, 'show']);
         Route::put('/banners/{id}', [BannerController::class, 'update']);
         Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
+
+        // Category Management (Admin only)
+        Route::get('/categories', [\App\Http\Controllers\Api\Admin\CategoryManagementController::class, 'index']);
+        Route::post('/categories', [\App\Http\Controllers\Api\Admin\CategoryManagementController::class, 'store']);
+        Route::put('/categories/{id}', [\App\Http\Controllers\Api\Admin\CategoryManagementController::class, 'update']);
+        Route::delete('/categories/{id}', [\App\Http\Controllers\Api\Admin\CategoryManagementController::class, 'destroy']);
+
 
         // Variation Group Management (Admin only)
         Route::get('/variation-groups', [VariationGroupController::class, 'index']);

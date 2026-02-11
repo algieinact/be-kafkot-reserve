@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Menu;
+use App\Services\CloudinaryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class MenuManagementController extends Controller
 {
@@ -61,8 +61,8 @@ class MenuManagementController extends Controller
             'menu_name' => 'required|string|max:255',
             'description' => 'required|string',
             'price' => 'required|numeric|min:0',
-            'category' => 'required|in:food,drink,dessert',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'category_id' => 'required|exists:categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'is_available' => 'boolean',
         ]);
 
@@ -71,16 +71,22 @@ class MenuManagementController extends Controller
                 'menu_name' => $request->menu_name,
                 'description' => $request->description,
                 'price' => $request->price,
-                'category' => $request->category,
+                'category_id' => $request->category_id,
                 'is_available' => $request->is_available ?? true,
             ];
 
-            // Handle image upload
+            // Handle image upload to Cloudinary
             if ($request->hasFile('image')) {
-                $file = $request->file('image');
-                $filename = 'menu-' . time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('menu-images', $filename, 'public');
-                $data['image_url'] = $path;
+                $cloudinary = new CloudinaryService();
+                $publicId = 'menu-' . time();
+
+                $uploadResult = $cloudinary->uploadImage(
+                    $request->file('image'),
+                    'kafkot/menus',
+                    $publicId
+                );
+
+                $data['image_url'] = $uploadResult['secure_url'];
             }
 
             $menu = Menu::create($data);
@@ -110,8 +116,8 @@ class MenuManagementController extends Controller
             'menu_name' => 'required|string|max:255',
             'description' => 'required|string',
             'price' => 'required|numeric|min:0',
-            'category' => 'required|in:food,drink,dessert',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'category_id' => 'required|exists:categories,id',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'is_available' => 'boolean',
         ]);
 
@@ -120,21 +126,31 @@ class MenuManagementController extends Controller
                 'menu_name' => $request->menu_name,
                 'description' => $request->description,
                 'price' => $request->price,
-                'category' => $request->category,
+                'category_id' => $request->category_id,
                 'is_available' => $request->is_available ?? $menu->is_available,
             ];
 
-            // Handle image upload
+            // Handle image upload to Cloudinary
             if ($request->hasFile('image')) {
-                // Delete old image if exists
-                if ($menu->image_url) {
-                    Storage::disk('public')->delete($menu->image_url);
+                $cloudinary = new CloudinaryService();
+
+                // Delete old image if exists and valid Cloudinary URL
+                if ($menu->image_url && str_contains($menu->image_url, 'cloudinary')) {
+                    $oldPublicId = $cloudinary->extractPublicId($menu->image_url);
+                    if ($oldPublicId) {
+                        $cloudinary->deleteImage($oldPublicId);
+                    }
                 }
 
-                $file = $request->file('image');
-                $filename = 'menu-' . time() . '-' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('menu-images', $filename, 'public');
-                $data['image_url'] = $path;
+                $publicId = 'menu-' . $menu->id . '-' . time();
+
+                $uploadResult = $cloudinary->uploadImage(
+                    $request->file('image'),
+                    'kafkot/menus',
+                    $publicId
+                );
+
+                $data['image_url'] = $uploadResult['secure_url'];
             }
 
             $menu->update($data);
@@ -161,9 +177,18 @@ class MenuManagementController extends Controller
         try {
             $menu = Menu::findOrFail($id);
 
-            // Delete image if exists
-            if ($menu->image_url) {
-                Storage::disk('public')->delete($menu->image_url);
+            // Delete image from Cloudinary if exists
+            if ($menu->image_url && str_contains($menu->image_url, 'cloudinary')) {
+                try {
+                    $cloudinary = new CloudinaryService();
+                    $publicId = $cloudinary->extractPublicId($menu->image_url);
+                    if ($publicId) {
+                        $cloudinary->deleteImage($publicId);
+                    }
+                } catch (\Exception $e) {
+                    // Log error but continue deletion of menu
+                    \Log::error('Failed to delete menu image from Cloudinary: ' . $e->getMessage());
+                }
             }
 
             $menu->delete();

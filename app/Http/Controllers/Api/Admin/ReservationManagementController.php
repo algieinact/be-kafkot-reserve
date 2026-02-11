@@ -16,6 +16,11 @@ class ReservationManagementController extends Controller
     {
         $query = Reservation::with(['table.tableType', 'reservationItems.menu', 'payment']);
 
+        // Filter by ID
+        if ($request->has('id')) {
+            $query->where('id', $request->id);
+        }
+
         // Filter by status
         if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -30,7 +35,7 @@ class ReservationManagementController extends Controller
         if ($request->has('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('booking_code', 'like', '%' . $request->search . '%')
-                  ->orWhere('customer_name', 'like', '%' . $request->search . '%');
+                    ->orWhere('customer_name', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -101,7 +106,7 @@ class ReservationManagementController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to verify payment: ' . $e->getMessage(),
@@ -158,7 +163,7 @@ class ReservationManagementController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to reject payment: ' . $e->getMessage(),

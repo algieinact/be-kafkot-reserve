@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Category;
+
+class CategoryController extends Controller
+{
+    /**
+     * Get all categories (public endpoint)
+     */
+    public function index()
+    {
+        $categories = Category::orderBy('name')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $categories,
+        ]);
+    }
+}

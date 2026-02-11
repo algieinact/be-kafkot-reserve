@@ -13,11 +13,11 @@ class MenuController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Menu::where('is_available', true);
+        $query = Menu::with('category')->where('is_available', true);
 
-        // Filter by category
-        if ($request->has('category') && $request->category !== 'all') {
-            $query->where('category', $request->category);
+        // Filter by category_id
+        if ($request->has('category_id') && $request->category_id) {
+            $query->where('category_id', $request->category_id);
         }
 
         // Search by name
@@ -25,7 +25,7 @@ class MenuController extends Controller
             $query->where('menu_name', 'like', '%' . $request->search . '%');
         }
 
-        $menus = $query->orderBy('category')->orderBy('menu_name')->get();
+        $menus = $query->orderBy('category_id')->orderBy('menu_name')->get();
 
         return response()->json([
             'success' => true,

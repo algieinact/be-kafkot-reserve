@@ -11,6 +11,7 @@ class Menu extends Model
         'description',
         'price',
         'category',
+        'category_id',
         'image_url',
         'is_available',
     ];
@@ -19,6 +20,11 @@ class Menu extends Model
         'is_available' => 'boolean',
         'price' => 'decimal:2',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
 
     public function reservationItems()
     {

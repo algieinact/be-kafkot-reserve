@@ -19,7 +19,10 @@ class DatabaseSeeder extends Seeder
             TableTypeSeeder::class,
             TableSeeder::class,
             UserSeeder::class,
+            CategorySeeder::class,
+            VariationSeeder::class,
             MenuSeeder::class,
+            BannerSeeder::class,
             BankAccountSeeder::class,
         ]);
     }
