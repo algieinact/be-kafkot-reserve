@@ -11,7 +11,12 @@ class ReservationItem extends Model
         'menu_id',
         'quantity',
         'price_at_order',
+        'variations',
         'subtotal',
+    ];
+
+    protected $casts = [
+        'variations' => 'array',
     ];
 
     public function reservation()
