@@ -61,7 +61,7 @@ class TableManagementController extends Controller
             'table_type_id' => 'required|exists:table_types,id',
             'table_number' => 'required|string|unique:tables,table_number',
             'capacity' => 'required|integer|min:1|max:20',
-            'status' => 'nullable|in:available,reserved,inactive',
+            'status' => 'nullable|in:available,inactive',
         ]);
 
         try {
@@ -99,7 +99,7 @@ class TableManagementController extends Controller
             'table_type_id' => 'required|exists:table_types,id',
             'table_number' => 'required|string|unique:tables,table_number,' . $id,
             'capacity' => 'required|integer|min:1|max:20',
-            'status' => 'nullable|in:available,reserved,inactive',
+            'status' => 'nullable|in:available,inactive',
         ]);
 
         try {
@@ -167,7 +167,7 @@ class TableManagementController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:available,reserved,inactive',
+            'status' => 'required|in:available,inactive',
         ]);
 
         try {

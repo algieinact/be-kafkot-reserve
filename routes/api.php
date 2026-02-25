@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\Admin\VariationGroupController;
 use App\Http\Controllers\Api\Admin\VariationOptionController;
+use App\Http\Controllers\Api\Admin\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -118,5 +119,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // Menu Variation Assignment (Admin only)
         Route::post('/menus/{id}/variations', [MenuController::class, 'assignVariations']);
         Route::delete('/menus/{menuId}/variations/{groupId}', [MenuController::class, 'removeVariation']);
+
+        // User Management (Admin only)
+        Route::get('/users', [UserManagementController::class, 'index']);
+        Route::get('/users/{id}', [UserManagementController::class, 'show']);
+        Route::post('/users', [UserManagementController::class, 'store']);
+        Route::put('/users/{id}', [UserManagementController::class, 'update']);
+        Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
     });
 });

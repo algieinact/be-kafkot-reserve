@@ -96,8 +96,7 @@ class ReservationController extends Controller
                 'reservation_time' => $request->reservation_time,
                 'duration_hours' => $request->duration_hours,
                 'total_amount' => $totalAmount,
-                'status' => 'pending_verification', // Always pending_verification, will be updated after payment upload
-                'payment_proof_url' => $paymentProofUrl,
+                'status' => 'pending_verification',
             ]);
 
             // Create reservation items
@@ -129,7 +128,7 @@ class ReservationController extends Controller
                     'reservation_id' => $reservation->id,
                     'amount' => $totalAmount,
                     'payment_method' => 'bank_transfer',
-                    'payment_status' => 'waiting_verification',
+                    'payment_status' => 'unpaid', // 'unpaid' until admin verifies; reservation.status tracks the verification state
                     'payment_proof_url' => $paymentProofUrl,
                 ]);
             }

@@ -12,10 +12,11 @@ class Payment extends Model
         'bank_name',
         'amount',
         'payment_proof_url',
-        'verification_status',
+        'payment_status',
         'rejection_reason',
         'verified_by',
         'verified_at',
+        'paid_at',
     ];
 
     public function reservation()

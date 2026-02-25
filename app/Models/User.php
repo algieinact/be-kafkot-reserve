@@ -19,7 +19,6 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
         'email',
         'password',
         'username',
@@ -51,7 +50,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Append name attribute to JSON
+     * Append name attribute to JSON (alias for full_name, for backward compatibility)
      */
     protected $appends = ['name'];
 
