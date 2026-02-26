@@ -126,5 +126,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [UserManagementController::class, 'store']);
         Route::put('/users/{id}', [UserManagementController::class, 'update']);
         Route::delete('/users/{id}', [UserManagementController::class, 'destroy']);
+
+        // Bank Account Management (Admin only)
+        Route::get('/bank-accounts', [\App\Http\Controllers\Api\Admin\BankAccountManagementController::class, 'index']);
+        Route::post('/bank-accounts', [\App\Http\Controllers\Api\Admin\BankAccountManagementController::class, 'store']);
+        Route::put('/bank-accounts/{id}', [\App\Http\Controllers\Api\Admin\BankAccountManagementController::class, 'update']);
+        Route::delete('/bank-accounts/{id}', [\App\Http\Controllers\Api\Admin\BankAccountManagementController::class, 'destroy']);
+        Route::patch('/bank-accounts/{id}/toggle-active', [\App\Http\Controllers\Api\Admin\BankAccountManagementController::class, 'toggleActive']);
+        Route::patch('/bank-accounts/{id}/set-primary', [\App\Http\Controllers\Api\Admin\BankAccountManagementController::class, 'setPrimary']);
     });
 });
